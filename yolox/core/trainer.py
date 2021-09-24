@@ -200,7 +200,9 @@ class Trainer:
                 self.save_ckpt(ckpt_name="last_mosaic_epoch")
 
     def after_epoch(self):
-        self.save_ckpt(ckpt_name="latest")
+        ckpt_name = "Epoch_{:0>4d}_{}".format(self.epoch+1, time.strftime('%Y%m%d_%H%M', time.localtime()))
+        self.save_ckpt(ckpt_name)
+        # self.save_ckpt(ckpt_name="latest")
 
         if (self.epoch + 1) % self.exp.eval_interval == 0:
             all_reduce_norm(self.model)

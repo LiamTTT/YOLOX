@@ -219,3 +219,7 @@ events.out.tfevents*
 
 # vim
 .vim
+
+# custom
+benchmark/
+exps/fcdd/
