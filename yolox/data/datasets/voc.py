@@ -242,7 +242,7 @@ class VOCDetection(Dataset):
             img = self.load_resized_img(index)
             target, img_info, _ = self.annotations[index]
 
-        return img, target, img_info, index
+        return img, target, img_info, np.array([index])
 
     @Dataset.mosaic_getitem
     def __getitem__(self, index):
