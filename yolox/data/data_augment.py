@@ -55,7 +55,9 @@ def get_affine_matrix(
     twidth, theight = target_size
 
     # Rotation and Scale
-    angle = get_aug_params(degrees)
+    angle = degrees
+    if angle != 0:
+        angle = random.choice([-180, -90, 0, 90])  # add 90deg rotations to small rotations
     scale = get_aug_params(scales, center=1.0)
 
     if scale <= 0.0:
