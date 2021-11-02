@@ -223,3 +223,5 @@ events.out.tfevents*
 # custom
 benchmark/
 exps/fcdd/
+exps/pmscope/
+tools/scripts/
