@@ -24,10 +24,10 @@ def parse_rec(filename):
         obj_struct["difficult"] = int(obj.find("difficult").text)
         bbox = obj.find("bndbox")
         obj_struct["bbox"] = [
-            int(bbox.find("xmin").text),
-            int(bbox.find("ymin").text),
-            int(bbox.find("xmax").text),
-            int(bbox.find("ymax").text),
+            int(float(bbox.find("xmin").text)),
+            int(float(bbox.find("ymin").text)),
+            int(float(bbox.find("xmax").text)),
+            int(float(bbox.find("ymax").text)),
         ]
         objects.append(obj_struct)
 
@@ -122,6 +122,7 @@ def voc_eval(
         return 0, 0, 0
 
     splitlines = [x.strip().split(" ") for x in lines]
+    splitlines = [[' '.join(x[:-5])] + x[-5:] for x in splitlines]  # FIXME 20210924 siboliu: concat those slide names contain space.
     image_ids = [x[0] for x in splitlines]
     confidence = np.array([float(x[1]) for x in splitlines])
     BB = np.array([[float(z) for z in x[2:]] for x in splitlines])
