@@ -225,3 +225,5 @@ benchmark/
 exps/fcdd/
 exps/pmscope/
 tools/scripts/
+*.bk
+
