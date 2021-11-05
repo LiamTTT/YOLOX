@@ -57,13 +57,15 @@ def get_affine_matrix(
     # Rotation and Scale
     angle = degrees
     if angle != 0:
-        angle = random.choice([-180, -90, 0, 90])  # add 90deg rotations to small rotations
+        angle = random.choice([-180., -90., 0., 90.])  # add 90deg rotations to small rotations
+    # angle = get_aug_params(degrees)
     scale = get_aug_params(scales, center=1.0)
 
     if scale <= 0.0:
         raise ValueError("Argument scale should be positive")
 
-    R = cv2.getRotationMatrix2D(angle=angle, center=(0, 0), scale=scale)
+    # change the center of rotation
+    R = cv2.getRotationMatrix2D(angle=angle, center=(twidth//2, theight//2), scale=scale)
 
     M = np.ones([2, 3])
     # Shear
@@ -77,8 +79,9 @@ def get_affine_matrix(
     translation_x = get_aug_params(translate) * twidth  # x translation (pixels)
     translation_y = get_aug_params(translate) * theight  # y translation (pixels)
 
-    M[0, 2] = translation_x
-    M[1, 2] = translation_y
+    # translation should be added to matrix when center is not zeros
+    M[0, 2] += translation_x
+    M[1, 2] += translation_y
 
     return M, scale
 
