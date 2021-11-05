@@ -34,6 +34,34 @@ def get_mosaic_coordinate(mosaic_image, mosaic_index, xc, yc, w, h, input_h, inp
     return (x1, y1, x2, y2), small_coord
 
 
+def norm_invalid_boxes(labels):
+    if len(labels) == 0:
+        return labels
+    new_labels = []
+    # remove b-boxes whose area less than 1.
+    for lb in labels:
+        x0, y0, x1, y1 = lb[:4]
+        if x1-x0 < 2 or y1-y0 < 2:
+            lb[:] = 0
+        new_labels.append(lb)
+    return np.stack(new_labels, 0)
+
+
+def draw_boxes(img, labels):
+    lab_t = labels.copy().astype(np.int32)
+    img_t = img.copy()
+    for lb in lab_t:
+        lb = tuple([int(el) for el in lb.tolist()])
+        img_t = cv2.rectangle(
+            img_t,
+            lb[:2],
+            lb[2:4],
+            (0,0,255),
+            2
+        )
+    return img_t
+
+
 class MosaicDetection(Dataset):
     """Detection dataset wrapper that performs mixup for normal dataset."""
 
@@ -128,13 +156,22 @@ class MosaicDetection(Dataset):
             mosaic_img, mosaic_labels = random_affine(
                 mosaic_img,
                 mosaic_labels,
-                target_size=(input_w, input_h),
+                target_size=(2 * input_w, 2 * input_h),
                 degrees=self.degrees,
-                translate=self.translate,
+                translate=0.,  # close the translate on mosaic image
                 scales=self.scale,
                 shear=self.shear,
             )
-
+            # the shape of mosaic_img is (2*input_w, 2*input_h, 3)
+            # crop it to (input_w, input_h), not resize
+            mosaic_img = mosaic_img[: input_h, : input_w, :]
+            np.clip(mosaic_labels[:, 0], 0, input_w, out=mosaic_labels[:, 0])
+            np.clip(mosaic_labels[:, 1], 0, input_h, out=mosaic_labels[:, 1])
+            np.clip(mosaic_labels[:, 2], 0, input_w, out=mosaic_labels[:, 2])
+            np.clip(mosaic_labels[:, 3], 0, input_h, out=mosaic_labels[:, 3])
+            mosaic_labels = norm_invalid_boxes(mosaic_labels)
+            # for debug
+            # img_t = draw_boxes(mosaic_img.copy(), mosaic_labels.copy())
             # -----------------------------------------------------------------
             # CopyPaste: https://arxiv.org/abs/2012.07177
             # -----------------------------------------------------------------
@@ -156,6 +193,19 @@ class MosaicDetection(Dataset):
         else:
             self._dataset._input_dim = self.input_dim
             img, label, img_info, img_id = self._dataset.pull_item(idx)
+            input_h, input_w = self.input_dim[0], self.input_dim[1]
+            img, label = random_affine(
+                img,
+                label.copy(),
+                target_size=(input_w, input_h),
+                degrees=self.degrees,
+                translate=self.translate,
+                scales=self.scale,
+                shear=self.shear,
+            )
+            label = norm_invalid_boxes(label)
+            # for debug
+            # img_t = draw_boxes(img.copy(), label.copy())
             img, label = self.preproc(img, label, self.input_dim)
             return img, label, img_info, img_id
 
