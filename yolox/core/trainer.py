@@ -7,6 +7,8 @@ import os
 import time
 from loguru import logger
 
+import cv2
+import numpy as np
 import torch
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
@@ -91,6 +93,24 @@ class Trainer:
         iter_start_time = time.time()
 
         inps, targets = self.prefetcher.next()
+        # write train image to tensorboard every 1/3 epoch
+        if self.iter % (self.max_iter // 3) == 0 and self.rank == 0:
+            logger.info(f"save train inputs at global iter-{self.progress_in_iter + 1}")
+            inp_imgs = inps.clone().detach().cpu().numpy().astype(np.uint8).transpose((0, 2, 3, 1))[:4, ..., ::-1]
+            inp_targ = targets.clone().detach().cpu().numpy().astype(int)[:4, ...]  # shape: (n, 120, 5) content: [cls, xc, yc, w, h]
+            for tb_idx in range(4):
+                for el in inp_targ[tb_idx]:
+                    if not el.any():
+                        continue
+                    tmp_img = inp_imgs[tb_idx].copy()
+                    inp_imgs[tb_idx] = cv2.rectangle(
+                        tmp_img,
+                        el[1:3] - el[3:5]//2,
+                        el[1:3] + el[3:5]//2,
+                        (255, 0, 0),
+                        2
+                    )
+            self.tblogger.add_images("train/input_image", inp_imgs, self.progress_in_iter + 1, dataformats='NHWC')
         inps = inps.to(self.data_type)
         targets = targets.to(self.data_type)
         targets.requires_grad = False
@@ -231,6 +251,13 @@ class Trainer:
             loss_str = ", ".join(
                 ["{}: {:.1f}".format(k, v.latest) for k, v in loss_meter.items()]
             )
+            if self.rank == 0:
+                # tensorboard
+                for k, v in loss_meter.items():
+                    self.tblogger.add_scalar(f"train/{k}", v.latest, self.progress_in_iter + 1)
+                self.tblogger.add_scalar("hyp/learning_rate", self.meter["lr"].latest, self.progress_in_iter + 1)
+                self.tblogger.add_scalar("hyp/input_w", self.input_size[0], self.progress_in_iter + 1)
+                self.tblogger.add_scalar("hyp/input_h", self.input_size[1], self.progress_in_iter + 1)
 
             time_meter = self.meter.get_filtered_meter("time")
             time_str = ", ".join(
